@@ -128,5 +128,3 @@ make logs
 # Test specific service
 make test-unit
 ```
-
-**Detaljan opis u CLAUDE.md**
