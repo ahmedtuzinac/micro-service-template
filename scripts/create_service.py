@@ -87,10 +87,23 @@ class ServiceGenerator:
         """Generiše mape za zamenu u template-ima"""
         # Kreiraj varijante imena
         service_name_clean = name.replace('-', '_')
-        model_name = ''.join(word.capitalize() for word in name.split('-'))
+        
+        # Bolje model naming: user-service -> User (ne UserService)
+        # Ukloni '-service' suffix ako postoji, pa capitalize
+        entity_name = name.replace('-service', '').replace('-', '_')
+        model_name = ''.join(word.capitalize() for word in entity_name.split('_'))
+        
+        # Ako je model_name još uvek generično, koristi prvi deo
+        if model_name.lower() in ['service', 'api', 'app']:
+            model_name = name.split('-')[0].capitalize()
+            
         route_name = service_name_clean
-        table_name = f"{service_name_clean}s"
+        table_name = f"{entity_name.lower()}s"
         route_prefix = name.replace('-', '_')
+        
+        # Smart API endpoint generation
+        api_prefix = self._generate_api_prefix(entity_name)
+        api_resource = self._generate_api_resource_name(entity_name)
 
         replacements = {
             '{{SERVICE_NAME}}': name,
@@ -102,12 +115,61 @@ class ServiceGenerator:
             '{{TABLE_NAME}}': table_name,
             '{{ROUTE_NAME}}': route_name,
             '{{ROUTE_PREFIX}}': route_prefix,
+            '{{API_PREFIX}}': api_prefix,
+            '{{API_RESOURCE}}': api_resource,
+            '{{API_RESOURCE_LOWER}}': api_resource.lower(),
+            '{{TIMESTAMP}}': "2024-01-01T00:00:00Z",  # Template timestamp
         }
 
         # Dodaj dodatne parametre
         replacements.update(kwargs)
 
         return replacements
+
+    def _generate_api_prefix(self, entity_name: str) -> str:
+        """Generiše smart API prefix na osnovu entity imena"""
+        # Poznati entity tipovi i njihovi API prefiksi
+        api_mappings = {
+            'user': '/users',
+            'order': '/orders', 
+            'product': '/products',
+            'customer': '/customers',
+            'invoice': '/invoices',
+            'payment': '/payments',
+            'category': '/categories',
+            'tag': '/tags',
+            'post': '/posts',
+            'comment': '/comments',
+            'file': '/files',
+            'upload': '/uploads',
+            'report': '/reports',
+            'log': '/logs',
+            'event': '/events',
+            'notification': '/notifications',
+            'message': '/messages',
+            'task': '/tasks',
+            'job': '/jobs',
+            'inventory': '/inventory',
+            'warehouse': '/warehouses'
+        }
+        
+        entity_lower = entity_name.lower()
+        
+        # Proveři direktno mapiranje
+        if entity_lower in api_mappings:
+            return api_mappings[entity_lower]
+        
+        # Fallback: plural form
+        if entity_lower.endswith('y'):
+            return f"/{entity_lower[:-1]}ies"
+        elif entity_lower.endswith(('s', 'sh', 'ch', 'x', 'z')):
+            return f"/{entity_lower}es"
+        else:
+            return f"/{entity_lower}s"
+
+    def _generate_api_resource_name(self, entity_name: str) -> str:
+        """Generiše resource name za API dokumentaciju"""
+        return entity_name.lower()
 
     def process_template_file(self, template_path: Path, target_path: Path, replacements: Dict[str, str]):
         """Obrađuje template fajl i kreira novi sa zamenama"""

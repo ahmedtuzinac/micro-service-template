@@ -29,7 +29,7 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
     
     await Tortoise.init(
         db_url=db_url,
-        modules={"models": ["basify.models.base", "basify.models.user"]},
+        modules={"models": ["basify.models.base"]},
         use_tz=True
     )
     

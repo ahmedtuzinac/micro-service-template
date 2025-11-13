@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, status
 from tortoise.exceptions import DoesNotExist
 from typing import List, Optional
-from models import {{MODEL_NAME}}, {{MODEL_NAME}}Schema, {{MODEL_NAME}}CreateSchema, {{MODEL_NAME}}UpdateSchema
+from models import Order, OrderSchema, OrderCreateSchema, OrderUpdateSchema
 
 # Import auth dependencies from framework - uvek dostupni sa graceful degradation
 from basify.auth import get_current_user, require_admin, optional_user
@@ -71,13 +71,13 @@ async def service_info():
         auth_status["configured"] = False
     
     return {
-        "service": "{{SERVICE_NAME}}",
-        "model": "{{MODEL_NAME}}",
-        "api_prefix": "{{API_PREFIX}}",
+        "service": "order-service",
+        "model": "Order",
+        "api_prefix": "/orders",
         "auth": auth_status,
         "endpoints": {
-            "{{API_PREFIX}}": "List all {{API_RESOURCE}}",
-            "{{API_PREFIX}}/{id}": "Get {{API_RESOURCE}} by ID",
+            "/orders": "List all order",
+            "/orders/{id}": "Get order by ID",
             "/protected": "Protected endpoint (requires auth)",
             "/admin-only": "Admin-only endpoint"
         }
@@ -96,7 +96,7 @@ async def protected_endpoint(current_user: dict = Depends(get_current_user)):
     return {
         "message": "This is a protected endpoint!",
         "user": current_user,
-        "timestamp": "{{TIMESTAMP}}"
+        "timestamp": "2024-01-01T00:00:00Z"
     }
 
 
@@ -111,7 +111,7 @@ async def admin_only_endpoint(admin_user: dict = Depends(require_admin)):
     return {
         "message": "Admin access granted!",
         "admin": admin_user,
-        "timestamp": "{{TIMESTAMP}}"
+        "timestamp": "2024-01-01T00:00:00Z"
     }
 
 
@@ -129,112 +129,112 @@ async def optional_auth_endpoint(user = Depends(optional_user)):
         return {
             "message": "Hello anonymous user!",
             "user_type": "anonymous",
-            "timestamp": "{{TIMESTAMP}}"
+            "timestamp": "2024-01-01T00:00:00Z"
         }
     else:
         return {
             "message": f"Hello {user.get('username', 'authenticated user')}!",
             "user_type": "authenticated", 
             "user": user,
-            "timestamp": "{{TIMESTAMP}}"
+            "timestamp": "2024-01-01T00:00:00Z"
         }
 
 
-# CRUD ROUTES for {{MODEL_NAME}}
+# CRUD ROUTES for Order
 
-@router.get("{{API_PREFIX}}", response_model=List[{{MODEL_NAME}}Schema])
-async def get_{{API_RESOURCE}}(
+@router.get("/orders", response_model=List[OrderSchema])
+async def get_order(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(10, ge=1, le=100, description="Number of records to return"),
     user = Depends(optional_user)  # Optional auth - track who's accessing
 ):
     """
-    Dobijanje liste svih {{API_RESOURCE}} sa paginacijom
+    Dobijanje liste svih order sa paginacijom
     """
-    {{API_RESOURCE_LOWER}} = await {{MODEL_NAME}}.all().offset(skip).limit(limit)
-    return [{{MODEL_NAME}}Schema.model_validate(obj) for obj in {{API_RESOURCE_LOWER}}]
+    order = await Order.all().offset(skip).limit(limit)
+    return [OrderSchema.model_validate(obj) for obj in order]
 
 
-@router.get("{{API_PREFIX}}/{{{API_RESOURCE_LOWER}}_id}", response_model={{MODEL_NAME}}Schema)
-async def get_{{API_RESOURCE_LOWER}}_by_id(
-    {{API_RESOURCE_LOWER}}_id: int,
+@router.get("/orders/{order_id}", response_model=OrderSchema)
+async def get_order_by_id(
+    order_id: int,
     user = Depends(optional_user)  # Optional auth
 ):
     """
-    Dobijanje {{API_RESOURCE_LOWER}} po ID-ju
+    Dobijanje order po ID-ju
     """
     try:
-        {{API_RESOURCE_LOWER}} = await {{MODEL_NAME}}.get(id={{API_RESOURCE_LOWER}}_id)
-        return {{MODEL_NAME}}Schema.model_validate({{API_RESOURCE_LOWER}})
+        order = await Order.get(id=order_id)
+        return OrderSchema.model_validate(order)
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="{{MODEL_NAME}} not found"
+            detail="Order not found"
         )
 
 
-@router.post("{{API_PREFIX}}", response_model={{MODEL_NAME}}Schema, status_code=status.HTTP_201_CREATED)
-async def create_{{API_RESOURCE_LOWER}}(
-    {{API_RESOURCE_LOWER}}_data: {{MODEL_NAME}}CreateSchema,
+@router.post("/orders", response_model=OrderSchema, status_code=status.HTTP_201_CREATED)
+async def create_order(
+    order_data: OrderCreateSchema,
     user = Depends(optional_user)  # Optional auth - track creator
 ):
     """
-    Kreiranje novog {{API_RESOURCE_LOWER}}
+    Kreiranje novog order
     """
     # Convert Pydantic model to dict
-    {{API_RESOURCE_LOWER}}_dict = {{API_RESOURCE_LOWER}}_data.dict()
+    order_dict = order_data.dict()
     
     # Create new instance
-    {{API_RESOURCE_LOWER}} = await {{MODEL_NAME}}.create(**{{API_RESOURCE_LOWER}}_dict)
+    order = await Order.create(**order_dict)
     
     # Set created_by if user is authenticated
-    await {{API_RESOURCE_LOWER}}.set_created_by(user)
-    await {{API_RESOURCE_LOWER}}.save()
+    await order.set_created_by(user)
+    await order.save()
     
-    return {{MODEL_NAME}}Schema.model_validate({{API_RESOURCE_LOWER}})
+    return OrderSchema.model_validate(order)
 
 
-@router.put("{{API_PREFIX}}/{{{API_RESOURCE_LOWER}}_id}", response_model={{MODEL_NAME}}Schema)
-async def update_{{API_RESOURCE_LOWER}}(
-    {{API_RESOURCE_LOWER}}_id: int,
-    {{API_RESOURCE_LOWER}}_data: {{MODEL_NAME}}UpdateSchema,
+@router.put("/orders/{order_id}", response_model=OrderSchema)
+async def update_order(
+    order_id: int,
+    order_data: OrderUpdateSchema,
     user = Depends(optional_user)  # Optional auth
 ):
     """
-    Ažuriranje postojećeg {{API_RESOURCE_LOWER}}
+    Ažuriranje postojećeg order
     """
     try:
-        {{API_RESOURCE_LOWER}} = await {{MODEL_NAME}}.get(id={{API_RESOURCE_LOWER}}_id)
+        order = await Order.get(id=order_id)
         
         # Update fields that are not None
-        update_data = {{API_RESOURCE_LOWER}}_data.dict(exclude_unset=True)
+        update_data = order_data.dict(exclude_unset=True)
         for field, value in update_data.items():
-            setattr({{API_RESOURCE_LOWER}}, field, value)
+            setattr(order, field, value)
             
-        await {{API_RESOURCE_LOWER}}.save()
-        return {{MODEL_NAME}}Schema.model_validate({{API_RESOURCE_LOWER}})
+        await order.save()
+        return OrderSchema.model_validate(order)
         
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="{{MODEL_NAME}} not found"
+            detail="Order not found"
         )
 
 
-@router.delete("{{API_PREFIX}}/{{{API_RESOURCE_LOWER}}_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_{{API_RESOURCE_LOWER}}(
-    {{API_RESOURCE_LOWER}}_id: int,
+@router.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_order(
+    order_id: int,
     user = Depends(optional_user)  # Optional auth
 ):
     """
-    Brisanje {{API_RESOURCE_LOWER}} po ID-ju
+    Brisanje order po ID-ju
     """
     try:
-        {{API_RESOURCE_LOWER}} = await {{MODEL_NAME}}.get(id={{API_RESOURCE_LOWER}}_id)
-        await {{API_RESOURCE_LOWER}}.delete()
+        order = await Order.get(id=order_id)
+        await order.delete()
         
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="{{MODEL_NAME}} not found"
+            detail="Order not found"
         )

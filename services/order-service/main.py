@@ -9,19 +9,19 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
 # Default database URL
-DEFAULT_DATABASE_URL = f"postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/user_db"
+DEFAULT_DATABASE_URL = f"postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/order_db"
 
 # Kreiranje Basify aplikacije
 app_instance = BasifyApp(
-    service_name="user-service",
+    service_name="order-service",
     version="1.0.0",
-    description="User Service",
+    description="Order Service",
     database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
-    models_modules=["models", "basify.models.user"]
+    models_modules=["models"]
 )
 
 # Dodavanje router-a
-app_instance.add_router(router, prefix="/api/v1", tags=["user-service"])
+app_instance.add_router(router, prefix="/api/v1", tags=["order-service"])
 
 # FastAPI aplikacija za uvicorn
 app = app_instance.get_app()

@@ -3,39 +3,39 @@ from tortoise import fields
 from typing import Optional
 
 
-class TestService(BaseModel):
+class Order(BaseModel):
     """
-    Model for test-service service
+    Model for order-service service
     """
     name = fields.CharField(max_length=255)
     description = fields.TextField(null=True, blank=True)
     
     class Meta:
-        table = "test_services"
+        table = "orders"
 
     def __str__(self):
         return f"{self.name} (ID: {self.id})"
 
 
-class TestServiceSchema(BaseSchema):
+class OrderSchema(BaseSchema):
     """
-    Schema for TestService model
-    """
-    name: str
-    description: Optional[str] = None
-
-
-class TestServiceCreateSchema(CreateSchema):
-    """
-    Schema for creating new TestService
+    Schema for Order model
     """
     name: str
     description: Optional[str] = None
 
 
-class TestServiceUpdateSchema(UpdateSchema):
+class OrderCreateSchema(CreateSchema):
     """
-    Schema for updating TestService
+    Schema for creating new Order
+    """
+    name: str
+    description: Optional[str] = None
+
+
+class OrderUpdateSchema(UpdateSchema):
+    """
+    Schema for updating Order
     """
     name: Optional[str] = None
     description: Optional[str] = None

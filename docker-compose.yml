@@ -16,29 +16,29 @@ services:
     ports:
     - 8000:8000
     restart: unless-stopped
-  test-service:
+  inventory-service:
     build:
       context: .
-      dockerfile: ./services/test-service/Dockerfile
+      dockerfile: ./services/inventory-service/Dockerfile
     environment:
       AUTH_SERVICE_URL: http://auth-service:8000
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${DB_PREFIX}_test_db
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${DB_PREFIX}_inventory_db
       PORT: '8002'
-      SERVICE_NAME: test-service
+      SERVICE_NAME: inventory-service
     extra_hosts:
     - ${POSTGRES_HOST}:host-gateway
     ports:
     - 8002:8002
     restart: unless-stopped
-  user-service:
+  order-service:
     build:
       context: .
-      dockerfile: ./services/user-service/Dockerfile
+      dockerfile: ./services/order-service/Dockerfile
     environment:
       AUTH_SERVICE_URL: http://auth-service:8000
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${DB_PREFIX}_user_db
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${DB_PREFIX}_order_db
       PORT: '8001'
-      SERVICE_NAME: user-service
+      SERVICE_NAME: order-service
     extra_hosts:
     - ${POSTGRES_HOST}:host-gateway
     ports:
