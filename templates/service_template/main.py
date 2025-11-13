@@ -17,7 +17,7 @@ app_instance = BasifyApp(
     version="1.0.0",
     description="{{SERVICE_DESCRIPTION}}",
     database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
-    models_modules=["models", "basify.models.user"]
+    models_modules=["models"]
 )
 
 # Dodavanje router-a
