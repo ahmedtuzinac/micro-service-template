@@ -213,17 +213,23 @@ class ServiceGenerator:
             compose_data['services'] = {}
 
         # Dodaj novi servis
+        service_env = {
+            'DATABASE_URL': f'postgres://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{POSTGRES_HOST}}:${{POSTGRES_PORT}}/${{DB_PREFIX}}_{database}',
+            'SERVICE_NAME': name,
+            'PORT': str(port)
+        }
+        
+        # Dodaj AUTH_SERVICE_URL za sve servise osim auth-service
+        if name != 'auth-service':
+            service_env['AUTH_SERVICE_URL'] = 'http://auth-service:8000'
+        
         compose_data['services'][name] = {
             'build': {
                 'context': '.',
                 'dockerfile': f'./services/{name}/Dockerfile'
             },
             'ports': [f'{port}:{port}'],
-            'environment': {
-                'DATABASE_URL': f'postgres://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{POSTGRES_HOST}}:${{POSTGRES_PORT}}/${{DB_PREFIX}}_{database}',
-                'SERVICE_NAME': name,
-                'PORT': str(port)
-            },
+            'environment': service_env,
             'restart': 'unless-stopped',
             'extra_hosts': ['${POSTGRES_HOST}:host-gateway']
         }
