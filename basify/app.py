@@ -22,6 +22,7 @@ class BasifyApp:
         models_modules: List[str] = None,
         cors_origins: List[str] = None,
         trusted_hosts: List[str] = None,
+        auth_service_url: Optional[str] = None,
     ):
         self.service_name = service_name
         self.version = version
@@ -30,6 +31,7 @@ class BasifyApp:
         self.models_modules = models_modules or []
         self.cors_origins = cors_origins or ["*"]
         self.trusted_hosts = trusted_hosts or ["*"]
+        self.auth_service_url = auth_service_url or os.getenv("AUTH_SERVICE_URL")
         
         # Setup logging
         self._setup_logging()
@@ -37,6 +39,10 @@ class BasifyApp:
         # Initialize service client
         self.service_discovery = ServiceDiscovery()
         self.service_client = ServiceClient(service_discovery=self.service_discovery)
+        
+        # Initialize auth client (optional)
+        self.auth_client = None
+        self._init_auth_client()
         
         # Initialize FastAPI app
         self.app = self._create_app()
@@ -47,6 +53,32 @@ class BasifyApp:
             format=f"[{self.service_name}] %(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         self.logger = logging.getLogger(self.service_name)
+    
+    def _init_auth_client(self):
+        """
+        Inicijalizuje auth client - prvo pokušava AUTH_SERVICE_URL,
+        zatim auto-detektuje auth-service preko service discovery
+        """
+        auth_url = self.auth_service_url
+        
+        # Ako nema eksplicitno setovanu URL, pokušaj auto-detekciju
+        if not auth_url:
+            try:
+                services = self.service_discovery.list_services()
+                if "auth-service" in services:
+                    auth_url = services["auth-service"]
+                    self.auth_service_url = auth_url
+                    self.logger.info(f"Auto-detected auth-service at: {auth_url}")
+            except Exception as e:
+                self.logger.debug(f"Auth service auto-detection failed: {e}")
+        
+        # Inicijalizuj auth client ako imamo URL
+        if auth_url:
+            from .clients.auth_client import AuthClient
+            self.auth_client = AuthClient(auth_url, self.service_client)
+            self.logger.info(f"Auth client initialized for: {auth_url}")
+        else:
+            self.logger.info("Auth client not initialized - no auth-service found")
 
     @asynccontextmanager
     async def lifespan(self, app: FastAPI):
