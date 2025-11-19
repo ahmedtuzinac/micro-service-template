@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from typing import str
 
 
 def generate_uuid() -> str:

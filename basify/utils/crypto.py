@@ -1,5 +1,4 @@
 import bcrypt
-from typing import str
 
 
 def hash_password(password: str) -> str:
