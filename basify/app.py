@@ -36,9 +36,21 @@ class BasifyApp:
         # Setup logging
         self._setup_logging()
         
-        # Initialize service client
+        # Initialize service client with caching
         self.service_discovery = ServiceDiscovery()
-        self.service_client = ServiceClient(service_discovery=self.service_discovery)
+        self.service_client = ServiceClient(
+            service_discovery=self.service_discovery,
+            enable_cache=True  # Enable caching for better performance
+        )
+        
+        # Initialize Redis cache client
+        try:
+            from .cache import get_redis_client
+            self.cache_client = get_redis_client()
+            self.logger.info("Redis cache client initialized")
+        except ImportError:
+            self.cache_client = None
+            self.logger.warning("Redis cache not available - install redis package for better performance")
         
         # Initialize auth client (optional)
         self.auth_client = None

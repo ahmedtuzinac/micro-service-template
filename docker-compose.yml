@@ -10,9 +10,28 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       PORT: '8000'
+      REDIS_URL: redis://redis:6379/0
       SERVICE_NAME: auth-service
     extra_hosts:
     - ${POSTGRES_HOST}:host-gateway
     ports:
     - 8000:8000
     restart: unless-stopped
+  redis:
+    command: redis-server --appendonly yes
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      timeout: 5s
+    image: redis:7-alpine
+    ports:
+    - 6379:6379
+    restart: unless-stopped
+    volumes:
+    - redis_data:/data
+volumes:
+  redis_data: null

@@ -58,7 +58,7 @@ class TestServiceClient:
         
         # Patch the get method of the service client
         with patch.object(service_client, 'get', side_effect=mock_get):
-            result = await service_client.health_check("test-service")
+            result = await service_client.health_check("test-service", use_cache=False)
             assert result is True
     
     @pytest.mark.unit
@@ -72,7 +72,7 @@ class TestServiceClient:
             raise Exception("Unexpected endpoint")
         
         with patch.object(service_client, 'get', side_effect=mock_get):
-            result = await service_client.health_check("test-service")
+            result = await service_client.health_check("test-service", use_cache=False)
             assert result is False
     
     @pytest.mark.unit
@@ -84,7 +84,7 @@ class TestServiceClient:
             raise ServiceUnavailableError("Service down")
         
         with patch.object(service_client, 'get', side_effect=mock_get):
-            result = await service_client.health_check("test-service")
+            result = await service_client.health_check("test-service", use_cache=False)
             assert result is False
     
     @pytest.mark.unit
