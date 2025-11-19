@@ -108,3 +108,8 @@ services/*/tmp/
 .coverage.*
 test-results/
 test-reports/
+
+# Database backups (should not be in git)
+backups/
+*.sql
+*.dump

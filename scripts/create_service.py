@@ -9,6 +9,8 @@ import os
 import shutil
 import re
 import yaml
+import asyncio
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -32,6 +34,10 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 DB_PREFIX = os.getenv("DB_PREFIX", "basify")
 
+# Dodaj project root u Python path za import basify modula
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 
 class ServiceGenerator:
     def __init__(self, project_root: str = None):
@@ -42,6 +48,42 @@ class ServiceGenerator:
 
         # Ensure directories exist
         self.services_dir.mkdir(exist_ok=True)
+
+    async def create_service_database(self, database_name: str) -> bool:
+        """Kreira bazu podataka za servis"""
+        try:
+            # Import basify database module
+            from basify.database import create_database_if_not_exists
+            
+            # Za lokalno kreiranje baze, koristi localhost umesto host.docker.internal
+            db_host = POSTGRES_HOST
+            if db_host == "host.docker.internal":
+                db_host = "localhost"  # Fallback za lokalne operacije
+            
+            # Kreiraj database URL sa environment varijablama
+            database_url = f"postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{db_host}:{POSTGRES_PORT}/{DB_PREFIX}_{database_name}"
+            
+            print(f"🗄️  Creating database: {DB_PREFIX}_{database_name}")
+            print(f"   Host: {db_host}:{POSTGRES_PORT}")
+            
+            # Pokušaj kreiranje baze
+            success = await create_database_if_not_exists(database_url)
+            
+            if success:
+                print(f"   ✅ Database created successfully")
+                return True
+            else:
+                print(f"   ❌ Failed to create database")
+                return False
+                
+        except ImportError as e:
+            print(f"   ❌ Could not import basify.database: {e}")
+            print(f"   ℹ️  Make sure basify module is in Python path")
+            return False
+        except Exception as e:
+            print(f"   ❌ Error creating database: {e}")
+            print(f"   ℹ️  Make sure PostgreSQL is running and accessible")
+            return False
 
     def validate_service_name(self, name: str) -> bool:
         """Validira ime servisa"""
@@ -307,7 +349,7 @@ class ServiceGenerator:
             print(f"✗ Error updating docker-compose.yml: {e}")
             raise
 
-    def create_service(self, name: str, port: Optional[int] = None, database: Optional[str] = None, **kwargs) -> bool:
+    async def create_service(self, name: str, port: Optional[int] = None, database: Optional[str] = None, **kwargs) -> bool:
         """Glavna metoda za kreiranje servisa"""
 
         # Validacija
@@ -347,16 +389,28 @@ class ServiceGenerator:
             # Ažuriraj docker-compose
             self.update_docker_compose(name, port, database)
 
+            # Kreiraj bazu podataka
+            print("-" * 50)
+            database_created = await self.create_service_database(database)
+            
             print("-" * 50)
             print(f"✓ Service {name} created successfully!")
             print(f"  Directory: services/{name}")
             print(f"  Port: {port}")
-            print(f"  Database: {database}")
+            print(f"  Database: {database} {'✅' if database_created else '❌'}")
             print("")
-            print("Next steps:")
-            print(f"1. cd services/{name}")
-            print("2. docker-compose build")
-            print("3. docker-compose up")
+            
+            if database_created:
+                print("Next steps:")
+                print(f"1. docker-compose build")
+                print(f"2. docker-compose up")
+                print("   Database is ready! 🎉")
+            else:
+                print("⚠️  Database creation failed. You may need to:")
+                print("1. Check PostgreSQL connection")
+                print("2. Run: make create-databases")
+                print("3. docker-compose build")
+                print("4. docker-compose up")
 
             return True
 
@@ -375,7 +429,7 @@ class ServiceGenerator:
             return False
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Create a new microservice')
     parser.add_argument('--name', '-n', help='Service name (e.g., user-service)')
     parser.add_argument('--port', '-p', type=int, help='Service port (auto-detected if not provided)')
@@ -416,11 +470,11 @@ def main():
         parser.print_help()
         exit(1)
 
-    if generator.create_service(name, port, database):
+    if await generator.create_service(name, port, database):
         exit(0)
     else:
         exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -10,6 +10,7 @@ import shutil
 import yaml
 import subprocess
 import sys
+import asyncio
 from pathlib import Path
 
 # Load .env file if it exists
@@ -20,6 +21,17 @@ try:
         load_dotenv(env_path)
 except ImportError:
     pass
+
+# PostgreSQL konfiguracija iz .env fajla ili environment varijabli
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "host.docker.internal")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+DB_PREFIX = os.getenv("DB_PREFIX", "basify")
+
+# Dodaj project root u Python path za import basify modula
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 
 class ServiceDeleter:
@@ -118,7 +130,54 @@ class ServiceDeleter:
             print(f"✗ Error removing service directory: {e}")
             return False
     
-    def delete_service(self, name: str, confirm: bool = False) -> bool:
+    async def delete_service_database(self, name: str, backup: bool = True) -> bool:
+        """Briše bazu podataka za servis (sa optional backup-om)"""
+        try:
+            # Import basify database module
+            from basify.database import drop_database
+            
+            # Generiši database name na isti način kao u create_service.py
+            service_clean = name.replace('-service', '').replace('-', '_')
+            database_name = f'{service_clean}_db'
+            
+            # Za lokalno kreiranje baze, koristi localhost umesto host.docker.internal
+            db_host = POSTGRES_HOST
+            if db_host == "host.docker.internal":
+                db_host = "localhost"  # Fallback za lokalne operacije
+            
+            # Kreiraj database URL
+            database_url = f"postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{db_host}:{POSTGRES_PORT}/{DB_PREFIX}_{database_name}"
+            
+            if backup:
+                print(f"💾 Backing up database: {DB_PREFIX}_{database_name}")
+                print(f"   Host: {db_host}:{POSTGRES_PORT}")
+            else:
+                print(f"🗄️  Deleting database: {DB_PREFIX}_{database_name} (no backup)")
+                print(f"   Host: {db_host}:{POSTGRES_PORT}")
+            
+            # Briši bazu (sa ili bez backup-a)
+            success = await drop_database(database_url, backup_first=backup)
+            
+            if success:
+                if backup:
+                    print(f"   ✅ Database backed up and deleted successfully")
+                else:
+                    print(f"   ✅ Database deleted successfully")
+                return True
+            else:
+                print(f"   ❌ Failed to delete database")
+                return False
+                
+        except ImportError as e:
+            print(f"   ❌ Could not import basify.database: {e}")
+            print(f"   ℹ️  Make sure basify module is in Python path")
+            return False
+        except Exception as e:
+            print(f"   ❌ Error deleting database: {e}")
+            print(f"   ℹ️  Make sure PostgreSQL is running and accessible")
+            return False
+    
+    async def delete_service(self, name: str, confirm: bool = False, keep_database: bool = False, backup_database: bool = True) -> bool:
         """Glavna metoda za brisanje servisa"""
         
         # Validacija imena
@@ -148,6 +207,13 @@ class ServiceDeleter:
             if exists_in_fs:
                 print(f"   - Service directory: services/{name}")
             print(f"   - Docker compose entry")
+            if not keep_database:
+                if backup_database:
+                    print(f"   - Database (will be backed up first)")
+                else:
+                    print(f"   - Database (no backup)")
+            else:
+                print(f"   - Database will be kept")
             print()
             
             response = input("Are you sure you want to delete this service? [y/N]: ").strip().lower()
@@ -173,6 +239,13 @@ class ServiceDeleter:
             if not self.remove_service_directory(name):
                 success = False
         
+        # Briši bazu (ako nije --keep-database)
+        if not keep_database:
+            if not await self.delete_service_database(name, backup=backup_database):
+                success = False
+        else:
+            print("💾 Database kept as requested")
+        
         if success:
             print("-" * 40)
             print(f"✅ Service '{name}' deleted successfully!")
@@ -190,11 +263,15 @@ class ServiceDeleter:
         return success
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Delete a microservice')
     parser.add_argument('--name', '-n', required=True, help='Service name to delete (e.g., user-service)')
     parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation prompt')
     parser.add_argument('--list', '-l', action='store_true', help='List all existing services')
+    parser.add_argument('--keep-database', action='store_true', 
+                       help='Keep the database (do not delete or backup)')
+    parser.add_argument('--no-backup', action='store_true',
+                       help='Delete database without creating backup (dangerous!)')
     
     args = parser.parse_args()
     
@@ -218,11 +295,18 @@ def main():
         return
     
     # Delete service
-    if deleter.delete_service(args.name, confirm=args.yes):
+    backup_db = not args.no_backup  # Default backup unless --no-backup
+    
+    if await deleter.delete_service(
+        args.name, 
+        confirm=args.yes, 
+        keep_database=args.keep_database,
+        backup_database=backup_db
+    ):
         exit(0)
     else:
         exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
