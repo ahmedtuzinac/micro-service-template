@@ -37,6 +37,20 @@ restart: ## Restartuj sve servise
 logs: ## Prikaži logove
 	docker-compose logs -f
 
+logs-web: ## Pokreni web monitoring dashboard (Dozzle)
+	@echo "🖥️  Starting Dozzle web log monitor..."
+	@echo "📊 Dashboard will be available at: http://localhost:8080"
+	@if [ "$$(docker-compose ps -q dozzle)" ]; then \
+		echo "✅ Dozzle is running"; \
+		open http://localhost:8080 2>/dev/null || echo "Visit http://localhost:8080 for log monitoring"; \
+	else \
+		echo "🚀 Starting Dozzle..."; \
+		docker-compose up dozzle -d && sleep 2 && open http://localhost:8080 2>/dev/null || echo "Visit http://localhost:8080 for log monitoring"; \
+	fi
+
+monitor: ## Pokreni monitoring dashboard
+	make logs-web
+
 test-services: ## Testiraj servise (integration test sa running services)
 	python scripts/test_services.py
 

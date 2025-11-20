@@ -17,6 +17,18 @@ services:
     ports:
     - 8000:8000
     restart: unless-stopped
+  dozzle:
+    container_name: dozzle
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_NO_ANALYTICS: true
+      DOZZLE_TAILSIZE: 300
+    image: amir20/dozzle:latest
+    ports:
+    - 8080:8080
+    restart: unless-stopped
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
   redis:
     command: redis-server --appendonly yes
     healthcheck:

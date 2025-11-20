@@ -169,8 +169,12 @@ class BasifyApp:
             services = self.service_discovery.list_services()
             service_status = {}
             
+            # Lista servisa koji nisu HTTP mikroservisi
+            non_http_services = {"redis", "dozzle", "postgres", "mongodb", "mysql", "elasticsearch", "kafka"}
+            
             for service_name, service_url in services.items():
-                if service_name != self.service_name:  # Ne proveravaj sebe
+                if (service_name != self.service_name and  # Ne proveravaj sebe
+                    service_name.lower() not in non_http_services):  # Ne proveravaj non-HTTP servise
                     is_healthy = await self.service_client.health_check(service_name)
                     service_status[service_name] = {
                         "url": service_url,
@@ -180,6 +184,44 @@ class BasifyApp:
             return {
                 "current_service": self.service_name,
                 "available_services": service_status
+            }
+        
+        @app.get("/monitoring")
+        async def monitoring_dashboard():
+            """Monitoring dashboard links and information"""
+            import os
+            environment = os.getenv("ENVIRONMENT", "docker").lower()
+            
+            # Determine dashboard URLs based on environment
+            if environment == "local":
+                dozzle_url = "http://localhost:8080"
+            else:
+                dozzle_url = "http://localhost:8080"  # Accessible from host
+            
+            return {
+                "service": self.service_name,
+                "monitoring": {
+                    "logs_dashboard": {
+                        "name": "Dozzle Log Viewer",
+                        "url": dozzle_url,
+                        "description": "Real-time container logs monitoring"
+                    },
+                    "health_endpoint": {
+                        "name": "Health Check",
+                        "url": f"/health",
+                        "description": "Service health status"
+                    },
+                    "services_endpoint": {
+                        "name": "Services Status", 
+                        "url": f"/services",
+                        "description": "All services health overview"
+                    }
+                },
+                "quick_commands": {
+                    "terminal_logs": "docker-compose logs -f",
+                    "web_dashboard": "make monitor",
+                    "service_health": f"curl {self.service_name}:8000/health"
+                }
             }
 
     def add_router(self, router, prefix: str = "", tags: List[str] = None):

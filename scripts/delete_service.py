@@ -33,6 +33,9 @@ DB_PREFIX = os.getenv("DB_PREFIX", "basify")
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Core services koji se nikad ne brišu iz docker-compose.yml
+CORE_SERVICES = {'redis', 'dozzle', 'postgres', 'mongodb', 'mysql', 'elasticsearch', 'kafka', 'prometheus', 'grafana'}
+
 
 class ServiceDeleter:
     def __init__(self, project_root: str = None):
@@ -90,6 +93,12 @@ class ServiceDeleter:
         """Uklanja servis iz docker-compose.yml"""
         if not self.docker_compose_file.exists():
             return True
+        
+        # Proveri da li je core servis koji ne sme da se briše
+        if name.lower() in CORE_SERVICES:
+            print(f"⚠️  {name} is a core service - skipping removal from docker-compose.yml")
+            print(f"   Core services: {', '.join(sorted(CORE_SERVICES))}")
+            return True
             
         try:
             with open(self.docker_compose_file, 'r') as f:
@@ -98,6 +107,11 @@ class ServiceDeleter:
             services = compose_data.get('services', {})
             
             if name in services:
+                # Backup compose file pre modifikacije
+                backup_path = f"{self.docker_compose_file}.backup"
+                shutil.copy(self.docker_compose_file, backup_path)
+                print(f"💾 Backup created: {backup_path}")
+                
                 del services[name]
                 print(f"✓ Removed {name} from docker-compose.yml")
                 

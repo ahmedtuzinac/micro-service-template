@@ -38,6 +38,9 @@ DB_PREFIX = os.getenv("DB_PREFIX", "basify")
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Core services koji se nikad ne brišu iz docker-compose.yml
+CORE_SERVICES = {'redis', 'dozzle', 'postgres', 'mongodb', 'mysql', 'elasticsearch', 'kafka', 'prometheus', 'grafana'}
+
 
 class ServiceGenerator:
     def __init__(self, project_root: str = None):
@@ -282,6 +285,9 @@ class ServiceGenerator:
             services_to_remove = []
 
             for service_name in services.keys():
+                # Ne briši core servise
+                if service_name.lower() in CORE_SERVICES:
+                    continue
 
                 service_path = self.services_dir / service_name
                 if not service_path.exists():
@@ -295,6 +301,8 @@ class ServiceGenerator:
                 # Sačuvaj ažurirani docker-compose.yml
                 with open(self.docker_compose_file, 'w') as f:
                     yaml.dump(compose_data, f, default_flow_style=False, indent=2)
+            else:
+                print(f"ℹ️  No orphaned services found to clean")
 
         except Exception as e:
             print(f"Warning: Could not clean docker-compose.yml: {e}")
